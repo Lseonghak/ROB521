@@ -194,14 +194,19 @@ class PathFollower():
             final_cost = np.zeros(self.num_opts)
             for i in range(self.num_opts):
                 if i in valid_opts:
-                    # final_cost[i] = self.cost_to_come(local_paths[:, i, :].T)
-                    final_cost[i] = self.cost_to_go(local_paths[:, i, :].T)
-                    # print("*****************in first cond")
+                    trajectory_o = local_paths[:, i, :].T
+                    cost = 0.0
+                    x_goal = self.cur_goal[0]
+                    y_goal = self.cur_goal[1]
+                    for i in range(1, len(trajectory_o[0])):
+                        x_d = x_goal - trajectory_o[0, i]
+                        y_d = y_goal - trajectory_o[1, i]
+
+                        cost += np.sqrt(x_d ** 2 + y_d ** 2)
+
                 else:
                     final_cost[i] = np.Inf
-                    # print("in else")
-            # print("cost to go", final_cost)
-
+                    
             if final_cost.min == np.Inf:  # hardcoded recovery if all options have collision
                 control = [-.1, 0]
             else:
@@ -218,49 +223,6 @@ class PathFollower():
 
             self.rate.sleep()
 
-    def cost_to_come(self, trajectory_o):
-        # The cost to get to a node from lavalle
-
-        # print("TO DO: Implement a cost to come metric")
-
-        cost = 0.0
-        # Path distance
-        for i in range(1, len(trajectory_o[0])):
-            x_d = trajectory_o[0, i] - trajectory_o[0, i - 1]
-            y_d = trajectory_o[1, i] - trajectory_o[1, i - 1]
-
-            cost += np.sqrt(x_d ** 2 + y_d ** 2)
-
-        return cost
-
-    def cost_to_go(self, trajectory_o):
-        cost = 0.0
-        x_goal = self.cur_goal[0]
-        y_goal = self.cur_goal[1]
-        for i in range(1, len(trajectory_o[0])):
-            x_d = x_goal - trajectory_o[0, i]
-            y_d = y_goal - trajectory_o[1, i]
-
-            cost += np.sqrt(x_d ** 2 + y_d ** 2)
-
-        return cost
-
-
-
-    def trajectory_rollout2(self, vel, rot_vel, node):
-        # Given your chosen velocities determine the trajectory of the robot for your given timestep
-        # The returned trajectory should be a series of points to check for collisions
-        robot_pose = node
-        traj = np.zeros((3, self.horizon_timesteps + 1))
-        real_bounds = np.array([[0.0, 43.5], [-45, 10]])
-        for i in range(self.horizon_timesteps + 1):
-            traj[0, i] = robot_pose[0] + vel * math.cos(robot_pose[2])
-            traj[1, i] = robot_pose[1] + vel * math.sin(robot_pose[2])
-            traj[2, i] = robot_pose[2] + rot_vel
-
-            robot_pose = traj[:, i]
-        return traj
-
     def trajectory_rollout(self, vel=0, rot_vel=0, x0=0, y0=0, theta0=0):
         # Given your chosen velocities determine the trajectory of the robot for your given timestep
         # The returned trajectory should be a series of points to check for collisions
@@ -276,9 +238,7 @@ class PathFollower():
         else:
             x = (vel / rot_vel) * (np.sin(rot_vel + theta0) - np.sin(theta0)) + x0
             offset = 0.5
-            # x = np.clip(x, self.bounds[0,0] + offset, self.bounds[0,1]-offset)
             y = -(vel / rot_vel) * (np.cos(rot_vel + theta0) - np.cos(theta0)) + y0
-            # y = np.clip(y, self.bounds[1, 0]+offset, self.bounds[1, 1] -offset)
             theta = (rot_vel + theta0) % (2 * math.pi)
         est_trajectory = np.vstack((x, y, theta))
 
